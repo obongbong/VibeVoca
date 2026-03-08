@@ -1,0 +1,51 @@
+# ── Python ───────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# ── Virtual Environments ─────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Environment Variables ────────────────────
+.env
+.env.*
+!.env.example
+
+# ── IDE & Editor ─────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ── Testing ───────────────────────────────────
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
+
+# ── Alembic ───────────────────────────────────
+# (versions/ 폴더 내 마이그레이션 파일은 커밋 대상)
+
+# ── Node (frontend 대비) ──────────────────────
+node_modules/
+.next/
+.nuxt/
+
+# ── Docker volumes ───────────────────────────
+postgres_data/
+
+# ── Logs ─────────────────────────────────────
+*.log
+logs/
