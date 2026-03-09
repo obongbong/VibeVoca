@@ -1,14 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { View, StyleSheet, ScrollView, Dimensions, ActivityIndicator, Share, Alert } from 'react-native';
+import { ScrollView, StyleSheet, View, ActivityIndicator, Dimensions, Alert, Share } from 'react-native';
 import { Title, Text, Card, useTheme, IconButton } from 'react-native-paper';
-import { LineChart } from 'react-native-chart-kit';
-import { getUserStats, UserStatsResponse } from '../api/voca';
-import { Ionicons } from '@expo/vector-icons';
+import { ContributionGraph, BarChart, PieChart } from 'react-native-chart-kit';
+import { getUserStats, getAnalysisStats, UserStatsResponse, AnalysisResponse } from '../api/voca';
 
 const screenWidth = Dimensions.get('window').width;
 
+const posLabels: { [key: string]: string } = {
+  n: '명사', noun: '명사',
+  v: '동사', verb: '동사',
+  adj: '형용사', adjective: '형용사',
+  adv: '부사', adverb: '부사',
+  prep: '전치사', preposition: '전치사',
+  conj: '접속사', conjunction: '접속사',
+  pron: '대명사', pronoun: '대명사',
+  int: '감탄사', interjection: '감탄사',
+};
+
 const ProfileScreen: React.FC<any> = ({ navigation }) => {
   const [stats, setStats] = useState<UserStatsResponse | null>(null);
+  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const theme = useTheme();
 
@@ -22,8 +33,12 @@ const ProfileScreen: React.FC<any> = ({ navigation }) => {
   const fetchStats = async () => {
     try {
       setLoading(true);
-      const data = await getUserStats();
-      setStats(data);
+      const [statsData, analysisData] = await Promise.all([
+        getUserStats(),
+        getAnalysisStats()
+      ]);
+      setStats(statsData);
+      setAnalysis(analysisData);
     } catch (err) {
       console.error('Failed to fetch user stats:', err);
     } finally {
@@ -46,31 +61,13 @@ const ProfileScreen: React.FC<any> = ({ navigation }) => {
     }
   };
 
-  if (loading || !stats) {
+  if (loading || !stats || !analysis) {
     return (
       <View style={[styles.center, { backgroundColor: theme.colors.background }]}>
         <ActivityIndicator size="large" color={theme.colors.primary} />
       </View>
     );
   }
-
-  // 차트 데이터를 위한 x축 레이블(Date)과 y축 데이터(Count) 매핑
-  const labels = stats.daily_stats.map(s => {
-    const parts = s.date.split('-');
-    return `${parts[1]}/${parts[2]}`;
-  });
-  const dataPoints = stats.daily_stats.map(s => s.studied_count);
-
-  const chartData = {
-    labels: labels.length > 0 ? labels : ['No Data'],
-    datasets: [
-      {
-        data: dataPoints.length > 0 ? dataPoints : [0],
-        color: (opacity = 1) => theme.dark ? `rgba(129, 140, 248, ${opacity})` : `rgba(99, 102, 241, ${opacity})`,
-        strokeWidth: 3,
-      },
-    ],
-  };
 
   const chartConfig = {
     backgroundColor: theme.colors.surface,
@@ -86,9 +83,38 @@ const ProfileScreen: React.FC<any> = ({ navigation }) => {
       r: '6',
       strokeWidth: '2',
       stroke: theme.colors.primary,
-      fill: theme.colors.surface
     },
   };
+
+  // 1. 잔디심기 (Contribution Graph) 데이터
+  // ContributionGraph는 { date: 'yyyy-mm-dd', count: number } 형태 배열을 받음
+  const contributionData = stats.contribution_stats || [];
+  // 90일 전 계산 끝나는 날짜
+  const endDate = new Date();
+
+  // 2. 품사별 정답률 데이터 (Bar Chart) - 하위 5개 표시
+  const weakPos = [...analysis.pos_accuracy]
+    .sort((a, b) => a.accuracy_rate - b.accuracy_rate)
+    .slice(0, 5);
+
+  const barChartData = {
+    labels: weakPos.length > 0 ? weakPos.map(item => posLabels[item.pos] || item.pos) : ['데이터 없음'],
+    datasets: [{
+      data: weakPos.length > 0 ? weakPos.map(item => item.accuracy_rate) : [0]
+    }]
+  };
+
+  // 3. 난이도별 학습 분포 (Pie Chart)
+  const pieChartData = analysis.difficulty_distribution.map((item, index) => {
+    const colors = ['#6366F1', '#818CF8', '#A5B4FC', '#C7D2FE', '#E0E7FF'];
+    return {
+      name: `Level ${item.difficulty}`,
+      population: item.count,
+      color: colors[index % colors.length],
+      legendFontColor: theme.dark ? '#9CA3AF' : '#4B5563',
+      legendFontSize: 12,
+    };
+  });
 
   return (
     <ScrollView
@@ -134,19 +160,78 @@ const ProfileScreen: React.FC<any> = ({ navigation }) => {
         </Card>
       </View>
 
-      <Title style={[styles.chartTitle, { color: theme.colors.onBackground }]}>최근 7일 일일 학습량</Title>
-      <View style={[styles.chartContainer, { backgroundColor: theme.colors.surface }]}>
-        <LineChart
-          data={chartData}
-          width={screenWidth - 40}
-          height={220}
-          chartConfig={chartConfig}
-          bezier
-          style={{
-            marginVertical: 8,
-            borderRadius: 16,
+      <Title style={[styles.chartTitle, { color: theme.colors.onBackground }]}>학습 달력 (최근 90일)</Title>
+      <View style={[styles.chartContainer, { backgroundColor: theme.colors.surface, paddingHorizontal: 0, paddingVertical: 15 }]}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          <ContributionGraph
+            values={contributionData}
+            endDate={endDate}
+            numDays={90}
+            width={screenWidth + 50}
+            height={220}
+            chartConfig={{
+              ...chartConfig,
+              color: (opacity = 1) => theme.dark ? `rgba(99, 102, 241, ${opacity})` : `rgba(99, 102, 241, ${opacity})`,
+            }}
+            gutterSize={3}
+            squareSize={14}
+            style={{ borderRadius: 16 }}
+            tooltipDataAttrs={(value: any) => {
+              return {
+                'data-tooltip': `${value.date}: ${value.count} words`
+              } as any;
+            }}
+          />
+        </ScrollView>
+      </View>
+
+      <Title style={[styles.chartTitle, { color: theme.colors.onBackground }]}>취약 품사 (정답률 분석)</Title>
+      <View style={[styles.chartContainer, { backgroundColor: theme.colors.surface, paddingTop: 20, paddingBottom: 10 }]}>
+        <BarChart
+          data={barChartData}
+          width={screenWidth - 60}
+          height={240}
+          yAxisLabel=""
+          yAxisSuffix="%"
+          chartConfig={{
+            ...chartConfig,
+            formatYLabel: (yLabel) => `${Math.round(Number(yLabel))}`,
+            propsForLabels: {
+              fontSize: 11,
+            },
+            barPercentage: 0.6,
           }}
+          style={{
+            borderRadius: 16,
+            paddingRight: 0,
+          }}
+          showValuesOnTopOfBars
+          fromZero
         />
+        <Text style={{ textAlign: 'center', marginTop: 0, color: theme.colors.onSurfaceVariant, fontSize: 13 }}>
+          정답률이 가장 낮은 품사 5개를 보여줍니다.
+        </Text>
+      </View>
+
+      <Title style={[styles.chartTitle, { color: theme.colors.onBackground }]}>학습 난이도 분포</Title>
+      <View style={[styles.chartContainer, { backgroundColor: theme.colors.surface, alignItems: 'center', paddingVertical: 10 }]}>
+        {pieChartData.length > 0 ? (
+          <PieChart
+            data={pieChartData}
+            width={screenWidth - 40}  // 컨테이너 폭에 여유있게 맞춤
+            height={200}  // 높이를 살짝 줄이면 파이가 작아져 잘리지 않음
+            chartConfig={chartConfig}
+            accessor={"population"}
+            backgroundColor={"transparent"}
+            paddingLeft={"15"} // 왼쪽 여백 확보
+            center={[10, 0]}   // 파이 그래프 중심점 미세 조정
+            absolute
+          />
+        ) : (
+          <View style={{ height: 220, justifyContent: 'center' }}>
+            <Text style={{ color: theme.colors.onSurfaceVariant }}>데이터가 없습니다.</Text>
+          </View>
+        )}
       </View>
 
       {/* Spacer for floating tab bar */}

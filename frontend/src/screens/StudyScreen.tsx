@@ -17,7 +17,7 @@ import Animated, {
   Extrapolate
 } from 'react-native-reanimated';
 import Flashcard from '../components/Flashcard';
-import { getTodayWords, submitReview, WordInfo, getUserStats, undoReview } from '../api/voca';
+import { getTodayWords, submitReview, WordInfo, getUserStats, undoReview, getStudyWordsByStatus } from '../api/voca';
 
 const SCREEN_WIDTH = SCREEN_DIMENSIONS.width;
 const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
@@ -25,7 +25,7 @@ const SWIPE_THRESHOLD = SCREEN_WIDTH * 0.25;
 import StudySummary from '../components/StudySummary';
 
 const StudyScreen: React.FC<any> = ({ route, navigation }) => {
-  const { setId, setTitle, mode = 'default', limit = 20 } = route.params;
+  const { setId, setTitle, mode = 'default', limit = 20, randomStatus } = route.params;
   const [words, setWords] = useState<WordInfo[]>([]);
   const [initialWordCount, setInitialWordCount] = useState(0);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -76,7 +76,14 @@ const StudyScreen: React.FC<any> = ({ route, navigation }) => {
   const fetchWords = async () => {
     try {
       setLoading(true);
-      const data = await getTodayWords(setId, limit, mode);
+      
+      let data;
+      if (randomStatus) {
+        data = await getStudyWordsByStatus(randomStatus, limit, mode);
+      } else {
+        data = await getTodayWords(setId, limit, mode);
+      }
+      
       setWords(data.words || []);
       setInitialWordCount(data.words ? data.words.length : 0);
       
@@ -148,9 +155,10 @@ const StudyScreen: React.FC<any> = ({ route, navigation }) => {
     });
 
     // Backend sync
+    const actualSetId = currentWord.set_id !== undefined ? currentWord.set_id : Number(setId);
     submitReview({ 
       word_id: currentWord.id, 
-      set_id: Number(setId),
+      set_id: actualSetId,
       quality 
     }).catch(err => console.error('[Study] Submit fail:', err));
     
@@ -244,9 +252,13 @@ const StudyScreen: React.FC<any> = ({ route, navigation }) => {
     }
 
     // DB Undo
+    const actualSetId = words[currentIndex - 1]?.set_id !== undefined 
+                           ? words[currentIndex - 1].set_id 
+                           : Number(setId);
+                           
     undoReview({
       word_id: lastAction.wordId,
-      set_id: Number(setId),
+      set_id: Number(actualSetId),
       quality: lastAction.quality as any,
       ...lastAction.prevState
     }).catch(err => console.error('[Study] DB Undo failed:', err));

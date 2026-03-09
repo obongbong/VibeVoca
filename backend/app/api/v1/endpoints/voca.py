@@ -26,6 +26,8 @@ from app.schemas.voca import (
     ProgressSummary,
     UserStatsResponse,
     UndoReview,
+    WordListResponse,
+    AnalysisResponse,
 )
 from app.services.srs_service import SRSService
 from app.api.deps import get_current_user
@@ -199,3 +201,78 @@ async def get_user_statistics(
     user_id_str = str(current_user.id) if current_user else "1"
     stats = await repo.get_user_statistics(user_id_str)
     return UserStatsResponse(**stats)
+
+
+@router.get(
+    "/stats/analysis",
+    response_model=AnalysisResponse,
+    summary="사용자 학습 성취도 분석 (품사/난이도)",
+)
+async def get_user_analysis(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> AnalysisResponse:
+    repo = VocaRepository(db)
+    user_id_str = str(current_user.id) if current_user else "1"
+    analysis = await repo.get_user_analysis(user_id_str)
+    return AnalysisResponse(**analysis)
+
+
+@router.get(
+    "/words",
+    response_model=WordListResponse,
+    summary="사용자 상태별 단어 리스트 조회",
+)
+async def get_words_by_status(
+    status: str = Query("all", description="상태: all, mastered, due"),
+    skip: int = Query(0, ge=0),
+    limit: int = Query(50, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> WordListResponse:
+    repo = VocaRepository(db)
+    user_id_str = str(current_user.id) if current_user else "1"
+    
+    if status not in ["all", "mastered", "due"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status. Must be one of: all, mastered, due"
+        )
+
+    result = await repo.get_user_words_by_status(user_id_str, status, skip, limit)
+    return WordListResponse(**result)
+
+
+@router.get(
+    "/words/study",
+    response_model=TodayWordsResponse,
+    summary="선택한 상태의 단어를 무작위/순차적으로 학습용으로 반환",
+)
+async def get_study_words_by_status(
+    status: str = Query("all", description="상태: all, mastered, due"),
+    limit: int = Query(20, ge=1, le=100),
+    mode: str = Query("random", description="모드: random, sequential"),
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+) -> TodayWordsResponse:
+    repo = VocaRepository(db)
+    user_id_str = str(current_user.id) if current_user else "1"
+    
+    if status not in ["all", "mastered", "due"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid status. Must be one of: all, mastered, due"
+        )
+    
+    result = await repo.get_words_for_status_study(user_id_str, status, limit, mode)
+    
+    from app.schemas.voca import WordProgressOut
+    words_out = [WordProgressOut(**w) for w in result["words"]]
+    
+    return TodayWordsResponse(
+        set_id=result["set_id"],
+        user_id=result["user_id"],
+        total_due_count=result["total_due_count"],
+        words=words_out,
+    )
+

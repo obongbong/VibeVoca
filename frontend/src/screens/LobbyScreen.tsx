@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, TouchableOpacity } from 'react-native';
-import { normalize, widthPercentage, SCREEN_DIMENSIONS } from '../utils/responsive';
+import { normalize, SCREEN_DIMENSIONS } from '../utils/responsive';
 import { ActivityIndicator, Text, ProgressBar, useTheme } from 'react-native-paper';
 import { Ionicons } from '@expo/vector-icons';
 import { getUserStats, UserStatsResponse, getVocaSets, VocaSet } from '../api/voca';
@@ -65,6 +65,7 @@ const LobbyScreen: React.FC<any> = ({ navigation }) => {
           value={totalWords}
           color="#A855F7"
           bgColor={theme.dark ? "#3B0764" : "#F3E8FF"}
+          onPress={() => navigation.navigate('WordList', { status: 'all' })}
         />
         <StatCard
           icon="checkmark-circle"
@@ -72,6 +73,7 @@ const LobbyScreen: React.FC<any> = ({ navigation }) => {
           value={learnedCount}
           color="#10B981"
           bgColor={theme.dark ? "#064E3B" : "#DCFCE7"}
+          onPress={() => navigation.navigate('WordList', { status: 'mastered' })}
         />
         <StatCard
           icon="trending-up"
@@ -79,6 +81,7 @@ const LobbyScreen: React.FC<any> = ({ navigation }) => {
           value={stats?.due_count || 0}
           color="#EF4444"
           bgColor={theme.dark ? "#450A0A" : "#FEE2E2"}
+          onPress={() => navigation.navigate('WordList', { status: 'due' })}
         />
         <StatCard
           icon="flame"
@@ -118,14 +121,21 @@ const LobbyScreen: React.FC<any> = ({ navigation }) => {
   );
 };
 
-const StatCard = ({ icon, label, value, color, bgColor }: any) => {
+const StatCard = ({ icon, label, value, color, bgColor, onPress }: any) => {
   const theme = useTheme();
+  
+  const CardComponent = onPress ? TouchableOpacity : View;
+  
   return (
-    <View style={[styles.statCard, { backgroundColor: bgColor }]}>
+    <CardComponent 
+      style={[styles.statCard, { backgroundColor: bgColor }]} 
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
+    >
       <Ionicons name={icon} size={28} color={color} />
       <Text style={[styles.statLabel, { color: theme.dark ? "#9CA3AF" : "#4B5563" }]}>{label}</Text>
       <Text style={[styles.statValue, { color }]}>{value}</Text>
-    </View>
+    </CardComponent>
   );
 };
 

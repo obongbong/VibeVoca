@@ -1,17 +1,80 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, ScrollView, Alert } from 'react-native';
-import { Text, Switch, List, useTheme, Divider } from 'react-native-paper';
+import { Text, Switch, List, useTheme, Divider, Portal, Dialog, RadioButton } from 'react-native-paper';
 import { normalize } from '../utils/responsive';
 import { useThemeContext } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { deleteAccount } from '../api/auth';
 import { Ionicons } from '@expo/vector-icons';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { requestNotificationPermissions, scheduleDailyReminder, cancelAllReminders } from '../utils/notifications';
 
 const SettingsScreen: React.FC = () => {
   const { isDarkMode, toggleTheme } = useThemeContext();
   const theme = useTheme();
   const { signOut } = useAuth();
-  const [deleting, setDeleting] = React.useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  // Push Notification States
+  const [isReminderEnabled, setIsReminderEnabled] = useState(false);
+  const [reminderTime, setReminderTime] = useState(new Date(new Date().setHours(21, 0, 0, 0))); // Default 21:00
+  const [showTimePicker, setShowTimePicker] = useState(false);
+
+  useEffect(() => {
+    loadNotificationSettings();
+  }, []);
+
+  const loadNotificationSettings = async () => {
+    try {
+      const enabled = await AsyncStorage.getItem('reminderEnabled');
+      const timeStr = await AsyncStorage.getItem('reminderTime');
+      if (enabled === 'true') {
+        setIsReminderEnabled(true);
+      }
+      if (timeStr) {
+        setReminderTime(new Date(timeStr));
+      }
+    } catch (e) {
+      console.error('Failed to load notification settings', e);
+    }
+  };
+
+  const toggleReminder = async (value: boolean) => {
+    try {
+      if (value) {
+        const hasPermission = await requestNotificationPermissions();
+        if (!hasPermission) {
+          Alert.alert('알림 권한 필요', '기기 설정에서 알림 권한을 허용해주세요.');
+          return;
+        }
+        await scheduleDailyReminder(reminderTime.getHours(), reminderTime.getMinutes());
+      } else {
+        await cancelAllReminders();
+      }
+      setIsReminderEnabled(value);
+      await AsyncStorage.setItem('reminderEnabled', value.toString());
+    } catch (e) {
+      console.error('Failed to toggle reminder', e);
+      Alert.alert('오류', '알림 설정 중 문제가 발생했습니다.');
+    }
+  };
+
+  const onTimeChange = async (hourString: string) => {
+    setShowTimePicker(false);
+    
+    // Parses hour "08", "12", "18", "21", "23" etc.
+    const selectedHour = parseInt(hourString, 10);
+    const newDate = new Date();
+    newDate.setHours(selectedHour, 0, 0, 0);
+    
+    setReminderTime(newDate);
+    await AsyncStorage.setItem('reminderTime', newDate.toISOString());
+    
+    if (isReminderEnabled) {
+      // Reschedule with new time
+      await scheduleDailyReminder(newDate.getHours(), newDate.getMinutes());
+    }
+  };
 
   const handleDeleteAccount = () => {
     Alert.alert(
@@ -62,6 +125,55 @@ const SettingsScreen: React.FC = () => {
             )}
           />
         </View>
+      </List.Section>
+
+      <List.Section>
+        <Text variant="labelLarge" style={[styles.subheader, { color: theme.colors.primary }]}>알림 설정</Text>
+        <View style={[styles.itemCard, { backgroundColor: theme.colors.surface }]}>
+          <List.Item
+            title="데일리 학습 리마인더"
+            description="매일 정해진 시간에 단어 학습 알림을 받습니다."
+            titleStyle={{ color: theme.colors.onSurface }}
+            left={() => <List.Icon icon="bell-ring-outline" color={theme.colors.primary} style={{ marginLeft: normalize(10) }} />}
+            right={() => (
+              <Switch
+                value={isReminderEnabled}
+                onValueChange={toggleReminder}
+                color={theme.colors.primary}
+              />
+            )}
+          />
+          {isReminderEnabled && (
+            <>
+              <Divider />
+              <List.Item
+                title="알림 시간 설정"
+                description={reminderTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) + " (매일)"}
+                titleStyle={{ color: theme.colors.onSurface }}
+                left={() => <List.Icon icon="clock-outline" color={theme.colors.primary} style={{ marginLeft: normalize(10) }} />}
+                onPress={() => setShowTimePicker(true)}
+              />
+            </>
+          )}
+        </View>
+
+        <Portal>
+          <Dialog visible={showTimePicker} onDismiss={() => setShowTimePicker(false)}>
+            <Dialog.Title>알림 받을 시간대</Dialog.Title>
+            <Dialog.Content>
+              <RadioButton.Group
+                onValueChange={newValue => onTimeChange(newValue)}
+                value={reminderTime.getHours().toString()}
+              >
+                <RadioButton.Item label="아침 8시 (08:00)" value="8" />
+                <RadioButton.Item label="점심 12시 (12:00)" value="12" />
+                <RadioButton.Item label="저녁 6시 (18:00)" value="18" />
+                <RadioButton.Item label="밤 9시 (21:00)" value="21" />
+                <RadioButton.Item label="밤 11시 (23:00)" value="23" />
+              </RadioButton.Group>
+            </Dialog.Content>
+          </Dialog>
+        </Portal>
       </List.Section>
 
       <List.Section>

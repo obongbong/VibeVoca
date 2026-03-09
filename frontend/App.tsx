@@ -16,10 +16,12 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import SettingsScreen from './src/screens/SettingsScreen';
 import SetSelectionScreen from './src/screens/SetSelectionScreen';
 import LoginScreen from './src/screens/LoginScreen';
+import WordListScreen from './src/screens/WordListScreen';
 import { ThemeProvider, useThemeContext } from './src/context/ThemeContext';
 import { AuthProvider, useAuth } from './src/context/AuthContext';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { ActivityIndicator, View } from 'react-native';
+import { checkAndShowFakeNotification } from './src/utils/notifications';
 
 const { LightTheme: AdaptedLightTheme, DarkTheme: AdaptedDarkTheme } = adaptNavigationTheme({
   reactNavigationLight: NavigationDefaultTheme,
@@ -32,6 +34,7 @@ export type RootStackParamList = {
   MainTabs: undefined;
   Study: { setId: number; setTitle: string };
   SetSelection: undefined;
+  WordList: { status: 'all' | 'mastered' | 'due' };
 };
 
 export type TabParamList = {
@@ -120,6 +123,10 @@ const AppContent = () => {
   const { isDarkMode } = useThemeContext();
   const { token, isLoading } = useAuth();
   
+  React.useEffect(() => {
+    checkAndShowFakeNotification();
+  }, []);
+
   const paperTheme = isDarkMode ? darkTheme : lightTheme;
   const navigationTheme = isDarkMode ? AdaptedDarkTheme : AdaptedLightTheme;
 
@@ -164,6 +171,16 @@ const AppContent = () => {
                   component={SetSelectionScreen}
                   options={{ 
                     title: '단어장 선택', 
+                    headerTitleAlign: 'center',
+                    headerStyle: { backgroundColor: paperTheme.colors.background },
+                    headerTintColor: isDarkMode ? '#F9FAFB' : '#1F2937',
+                  }}
+                />
+                <Stack.Screen
+                  name="WordList"
+                  component={WordListScreen}
+                  options={{ 
+                    title: '단어 목록', 
                     headerTitleAlign: 'center',
                     headerStyle: { backgroundColor: paperTheme.colors.background },
                     headerTintColor: isDarkMode ? '#F9FAFB' : '#1F2937',

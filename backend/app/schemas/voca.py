@@ -59,6 +59,7 @@ class WordProgressOut(BaseModel):
 
     # word info (joined)
     id: int  # word_id -> id 로 변경 (프론트엔드 대응)
+    set_id: int | None = None # 랜덤 학습용
     word: str
     meaning: str
     phonetic: str | None = None
@@ -152,6 +153,11 @@ class DailyStat(BaseModel):
     date: str
     studied_count: int
 
+class ContributionStat(BaseModel):
+    """잔디심기용 일별 데이터"""
+    date: str
+    count: int
+
 class UserStatsResponse(BaseModel):
     """GET /stats 응답"""
     today_studied: int
@@ -160,3 +166,46 @@ class UserStatsResponse(BaseModel):
     due_count: int
     streak: int
     daily_stats: list[DailyStat]
+    contribution_stats: list[ContributionStat] = Field(default_factory=list)
+
+
+# ──────────────────────────────────────────────
+# Analysis Schemas
+# ──────────────────────────────────────────────
+
+class PosAccuracy(BaseModel):
+    pos: str
+    total_reviews: int
+    correct_reviews: int
+    accuracy_rate: float
+
+class DifficultyDistribution(BaseModel):
+    difficulty: int
+    count: int
+
+class AnalysisResponse(BaseModel):
+    pos_accuracy: list[PosAccuracy]
+    difficulty_distribution: list[DifficultyDistribution]
+
+
+# ──────────────────────────────────────────────
+# Word List Schemas
+# ──────────────────────────────────────────────
+
+class WordItemOut(BaseModel):
+    """단어 리스트 항목 응답 모델."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    word: str
+    meaning: str
+    status: str
+    next_review_at: datetime | None = None
+
+
+class WordListResponse(BaseModel):
+    """GET /words 응답."""
+    total: int
+    items: list[WordItemOut]
+    skip: int
+    limit: int
