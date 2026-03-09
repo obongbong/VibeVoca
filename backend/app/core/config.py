@@ -37,12 +37,15 @@ class Settings(BaseSettings):
         )
 
     # ── JWT ──────────────────────────────────────────────────
-    SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION"
+    SECRET_KEY: str = "REQUIRED_SECRET_KEY"  # Must be set via environment variable
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
 
+    # ── Social OAuth ──────────────────────────────────────────
+    GOOGLE_CLIENT_ID: str = ""
+
     # ── CORS ─────────────────────────────────────────────────
-    CORS_ORIGINS: list[str] = ["*"]
+    CORS_ORIGINS: list[str] = []
 
 
 @lru_cache

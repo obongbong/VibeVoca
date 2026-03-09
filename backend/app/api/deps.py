@@ -14,7 +14,7 @@ from app.schemas.auth import TokenPayload
 
 oauth2_scheme = OAuth2PasswordBearer(
     tokenUrl="/api/v1/auth/login", # this is just a placeholder for swagger UI
-    auto_error=False
+    auto_error=True
 )
 
 async def get_current_user(
@@ -27,10 +27,7 @@ async def get_current_user(
         headers={"WWW-Authenticate": "Bearer"},
     )
     
-    if not token:
-        # Fallback for development if no token is provided: 
-        # (Remove or replace this when enforcing strict auth)
-        return None
+    # Fallback removed for security
         
     payload = security.verify_token(token)
     if payload is None:

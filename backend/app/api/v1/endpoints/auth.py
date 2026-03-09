@@ -11,9 +11,11 @@ import requests
 from app.db.session import get_db
 from app.models.user import User
 from app.models.voca import UserWordProgress
-from app.schemas.auth import Token, SocialLoginRequest, MockLoginRequest, UserOut
+from app.core.config import get_settings
 from app.core.security import create_access_token
 from app.api.deps import get_current_user
+
+settings = get_settings()
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
 
@@ -25,8 +27,8 @@ async def delete_current_user(
     """
     Delete the current logged-in user and all their progress data.
     """
-    if current_user is None:
-        raise HTTPException(status_code=401, detail="Not authenticated")
+    # The get_current_user dependency already ensures that current_user is not None
+    # and raises HTTPException(401) if not authenticated.
     
     user_id_str = str(current_user.id)
     
@@ -82,7 +84,7 @@ async def social_login(
     [Production] Social login endpoint.
     Validates token with provider (kakao, google), finds or creates user, returns our JWT.
     """
-    GOOGLE_CLIENT_ID = "680338426556-ibh1r73mo7m4p626294kvmosscgjo5gu.apps.googleusercontent.com"
+    GOOGLE_CLIENT_ID = settings.GOOGLE_CLIENT_ID
     email = None
     nickname = None
     social_id = None

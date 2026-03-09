@@ -1,10 +1,11 @@
 import axios from "axios";
 // Removed unused Platform import
 
-// Configuration for local testing
+// Configuration for API
 const getBaseUrl = () => {
-  // Use host machine's IP because the app is running on a physical Android device
-  return "http://121.155.230.160:8000/api/v1";
+  // Use environment variable for production, fallback to localhost for development
+  const apiHost = process.env.EXPO_PUBLIC_API_URL || "http://localhost:8000";
+  return `${apiHost}/api/v1`;
 };
 
 const apiClient = axios.create({

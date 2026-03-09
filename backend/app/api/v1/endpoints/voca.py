@@ -76,7 +76,7 @@ async def get_today_words(
             detail=f"세트를 찾을 수 없습니다: set_id={set_id}",
         )
 
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     words_data = await repo.get_due_words_with_detail(user_id_str, set_id, limit, mode)
 
     from app.schemas.voca import WordProgressOut
@@ -114,7 +114,7 @@ async def get_progress_summary(
         )
 
     svc = SRSService(db)
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     summary = await svc.get_set_progress_summary(user_id=user_id_str, set_id=set_id)
     return ProgressSummary(**summary)
 
@@ -141,7 +141,7 @@ async def submit_review(
     current_user: User = Depends(get_current_user)
 ) -> ReviewResult:
     svc = SRSService(db)
-    user_id_str = str(current_user.id) if current_user else body.user_id
+    user_id_str = str(current_user.id)
     sm2 = await svc.record_answer(
         user_id=user_id_str,
         word_id=body.word_id,
@@ -173,7 +173,7 @@ async def undo_review(
     current_user: User = Depends(get_current_user)
 ) -> dict:
     svc = SRSService(db)
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     await svc.undo_review(
         user_id=user_id_str,
         word_id=body.word_id,
@@ -198,7 +198,7 @@ async def get_user_statistics(
     current_user: User = Depends(get_current_user)
 ) -> UserStatsResponse:
     repo = VocaRepository(db)
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     stats = await repo.get_user_statistics(user_id_str)
     return UserStatsResponse(**stats)
 
@@ -213,7 +213,7 @@ async def get_user_analysis(
     current_user: User = Depends(get_current_user)
 ) -> AnalysisResponse:
     repo = VocaRepository(db)
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     analysis = await repo.get_user_analysis(user_id_str)
     return AnalysisResponse(**analysis)
 
@@ -231,7 +231,7 @@ async def get_words_by_status(
     current_user: User = Depends(get_current_user)
 ) -> WordListResponse:
     repo = VocaRepository(db)
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     
     if status not in ["all", "mastered", "due"]:
         raise HTTPException(
@@ -256,7 +256,7 @@ async def get_study_words_by_status(
     current_user: User = Depends(get_current_user)
 ) -> TodayWordsResponse:
     repo = VocaRepository(db)
-    user_id_str = str(current_user.id) if current_user else "1"
+    user_id_str = str(current_user.id)
     
     if status not in ["all", "mastered", "due"]:
         raise HTTPException(
